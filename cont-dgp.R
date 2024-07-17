@@ -40,7 +40,7 @@ cont_twfe_weights <- function(l, D) {
 
 n = 1000
 Xsi.ps = 0.75
-
+set.seed(1234)
 
 # Define the DGP function
 generate_dgp <- function(n, Xsi.ps) {
