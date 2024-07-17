@@ -1,5 +1,7 @@
 rm(list=ls())
 library(stats)
+library(ggplot2)
+library(binscatteR)
 
 cont_did <- function(dy, dose) {
   # choose bandwidth
@@ -77,7 +79,6 @@ generate_dgp <- function(n, Xsi.ps) {
   
   # Use the propensity score as the continuous treatment variable
   d <- pi
-  # d <- ifelse(pi<0.1, 0, pi)
   
   # Generate aux indexes for the potential outcomes
   index.lin <- 210 + 27.4 * z1 + 13.7 * (z2 + z3 + z4)
@@ -108,11 +109,9 @@ generate_dgp <- function(n, Xsi.ps) {
   # Generate realized outcome at time 1
   y1 <- d * y11 + (1 - d) * y10
   
-  dy = y1 - y0
-  dy =  (dy - min(dy)) / (max(dy) - min(dy))
-  return(data.frame(i = 1:n, dy = dy, dose = d #x = z, y1 = y1, y0 = y0, pi = pi
-              #att = index.att, att.unf = att.unf, eff = 11.10
-              ))
+  return(list(y1 = y1, y0 = y0, d = d, pi = pi, x = z,
+              att = 0, att.unf = att.unf,
+              eff = 11.10))
 }
 
 data <- generate_dgp(n, Xsi.ps)
