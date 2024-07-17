@@ -76,9 +76,8 @@ generate_dgp <- function(n, Xsi.ps) {
   # Generate groups
   # Propensity score
   pi <- stats::plogis(Xsi.ps * (-z1 + 0.5 * z2 - 0.25 * z3 - 0.1 * z4))
-  
-  # Use the propensity score as the continuous treatment variable
-  d <- pi
+  #pi <- pmin(pi, 0.999)
+  d  <- as.numeric(runif(n) <= pi)
   
   # Generate aux indexes for the potential outcomes
   index.lin <- 210 + 27.4 * z1 + 13.7 * (z2 + z3 + z4)
@@ -109,9 +108,9 @@ generate_dgp <- function(n, Xsi.ps) {
   # Generate realized outcome at time 1
   y1 <- d * y11 + (1 - d) * y10
   
-  return(list(y1 = y1, y0 = y0, d = d, pi = pi, x = z,
-              att = 0, att.unf = att.unf,
-              eff = 11.10))
+  return(data.frame(y1 = y1, y0 = y0, d = d, pi = pi, x = z,
+                    att = 0, att.unf = att.unf,
+                    eff = 11.10))
 }
 
 data <- generate_dgp(n, Xsi.ps)
