@@ -5,8 +5,8 @@ library(binscatteR)
 
 dose <- medicare1$medicare_share_1983
 dy <- medicare1$d_capital_labor_ratio
-summary(dy)
-summary(dose)
+# summary(dy)
+# summary(dose)
 
 ggplot(data.frame(dose=dose), aes(x=dose)) + 
   geom_histogram()
