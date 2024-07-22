@@ -1,32 +1,44 @@
-rm(list=ls())
-load("/home/oddish3/Downloads/medicare2.RData")
-medicare1 <- data
-# head(medicare1)
-library(ggplot2)
-library(binscatteR)
+set.seed(1234)
+library(truncnorm)
+generate_dataset <- function() {
+  # Define the number of hospitals
+  num_schools <- 1000
+  
+  # Generate a binary treatment indicator where 10% are untreated (0) and 90% are treated (1)
+  treatment <- rbinom(num_schools, 1, 0.9)
+  
+  # Initialize dose with zeros for all hospitals
+  dose <- rep(0, num_schools)
+  
+  # For the treated hospitals, generate dose from a normal distribution centered around 0.5 with sd of 0.16
+  dose[treatment == 1] <- rtruncnorm(sum(treatment), a = 0, b = 1, mean = 0.5, sd = 0.16)
+  
+  # Calculate the dependent variable dy using the quadratic equation
+  dy <- -4 * (dose-.5)^2 + 1 
+  dy[treatment == 0] <- rnorm(sum(treatment == 0), mean = 0.004687925, sd = 0.1013251)
+  # Create DataFrame
+  data.frame(
+    uni_ident = 1:num_schools,
+    dy = dy, 
+    dose = dose
+  )
+}
 
-plot(medicare1$medicare_share_1983)
-hist(medicare1$medicare_share_1983[medicare1$medicare_share_1983>0])
-mean(medicare1$medicare_share_1983[medicare1$medicare_share_1983>0])
-sd(medicare1$medicare_share_1983[medicare1$medicare_share_1983>0])
-sum(medicare1$medicare_share_1983>0)
+#debugonce(generate_dataset)
+# Generate the dataset
+data <- generate_dataset()
+colnames(data) <- c("hospital_id", "d_capital_labor_ratio", "medicare_share_1983")
+save(data, file="/home/oddish3/Downloads/medicare2.RData")
 
-hist(medicare1$d_capital_labor_ratio[medicare1$medicare_share_1983<0.03])
-mean(medicare1$d_capital_labor_ratio[medicare1$medicare_share_1983<0.03])
-sd(medicare1$d_capital_labor_ratio[medicare1$medicare_share_1983<0.03])
-sum(medicare1$medicare_share_1983==0)
-
-dose <- medicare1$medicare_share_1983
-dy <- medicare1$d_capital_labor_ratio
-# summary(dy)
-# summary(dose)
+dose <- data$medicare_share_1983
+dy <- data$d_capital_labor_ratio
 
 ggplot(data.frame(dose=dose), aes(x=dose)) + 
   geom_histogram()
 # a non trivial fraction of units are untreated while common values of traetment
 # are around 0.5 and this decreases as we move towards 0 and 1
 
-binnedout <- binscatter(data=medicare1, x="medicare_share_1983", y="d_capital_labor_ratio")
+binnedout <- binscatter(data=data, x="medicare_share_1983", y="d_capital_labor_ratio")
 binnedout
 
 twfe <- lm(dy ~ dose)
@@ -134,12 +146,12 @@ twfe_weights_plot <- ggplot(data=plot_df,
 twfe_weights_plot
 
 library(fixest)
-# split medicare1 into medicareshare greater than 1
-medicare1$binary <- ifelse(medicare1$medicare_share_1983>0, 1, 0)
+# split data into medicareshare greater than 1
+data$binary <- ifelse(data$medicare_share_1983>0, 1, 0)
 
-binarised <- feols(d_capital_labor_ratio ~ binary, data=medicare1)
+binarised <- feols(d_capital_labor_ratio ~ binary, data=data)
 summary(binarised)$coefficients[2]
 cont_res$att.overall
 summary(twfe)$coefficients[2,1]
 
-cont_res$acrt.overall
+print(cont_res$acrt.overall)
