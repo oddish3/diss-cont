@@ -5,19 +5,23 @@ library(splines2)
 library(tictoc)
 library(parallel)
 library(future.apply)
-source("~/Documents/uni/master-dissertation/code-cont/chen/jhat.R")
-source("~/Documents/uni/master-dissertation/code-cont/chen/jlep.R")
-source("~/Documents/uni/master-dissertation/code-cont/chen/npiv.R")
-source("~/Documents/uni/master-dissertation/code-cont/chen/npiv_estimate.R")
-source("~/Documents/uni/master-dissertation/code-cont/chen/bspline.R")
-source("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cv.R")
-source("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cvge.R")
+library(data.table)
+
+# Source functions (consider combining these into a single file)
+source_files <- c(
+  "~/Documents/uni/master-dissertation/code-cont/chen/jhat.R",
+  "~/Documents/uni/master-dissertation/code-cont/chen/jlep.R",
+  "~/Documents/uni/master-dissertation/code-cont/chen/npiv.R",
+  "~/Documents/uni/master-dissertation/code-cont/chen/npiv_estimate.R",
+  "~/Documents/uni/master-dissertation/code-cont/chen/bspline.R",
+  "~/Documents/uni/master-dissertation/code-cont/chen/ucb_cv.R",
+  "~/Documents/uni/master-dissertation/code-cont/chen/ucb_cvge.R"
+)
+invisible(lapply(source_files, source))
 
 array_value <- 1 # as.integer(Sys.getenv("SLURM_ARRAY_TASK_ID"))
 trimming <- array_value <= 4
 n_index <- if (trimming) array_value else array_value - 4
-print(trimming)
-print(n_index)
 
 # Inputs
 nn <- c(1250, 2500, 5000, 10000) # sample sizes
@@ -82,7 +86,8 @@ run_simulation <- function(j, n, nL, r, CJ, TJ, M, Px, nb, alpha, Xx, Xx_sub, h0
 }
 
 # Set up parallel backend
-plan(multisession, workers = detectCores() - 1)
+num_cores <- detectCores() - 1
+plan(multisession, workers = num_cores)
 
 # Run simulations in parallel
 tic()
@@ -91,14 +96,9 @@ results <- future_lapply(1:nm, function(j) {
 }, future.seed = TRUE)
 toc()
 
-# Process results
-Lhat <- sapply(results, function(x) x$Lhat)
-flag <- sapply(results, function(x) x$flag)
-Llep <- sapply(results, function(x) x$Llep)
-thet <- sapply(results, function(x) x$thet)
-Ltil <- sapply(results, function(x) x$Ltil)
-zast <- do.call(rbind, lapply(results, function(x) x$zast))
-loss <- sapply(results, function(x) x$loss)
-cvge <- array(unlist(lapply(results, function(x) x$cvge)), dim = c(length(alpha), nm))
+# Process results using data.table for faster operations
+results_dt <- rbindlist(lapply(results, as.data.table))
 
 # Further analysis or saving results can be done here
+# For example:
+# fwrite(results_dt, "simulation_results.csv")
