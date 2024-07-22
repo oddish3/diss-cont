@@ -6,6 +6,7 @@ library(tictoc)
 library(parallel)
 library(future.apply)
 library(data.table)
+library(profvis)
 
 # Source functions (consider combining these into a single file)
 source_files <- c(
@@ -91,9 +92,12 @@ plan(multisession, workers = num_cores)
 
 # Run simulations in parallel
 tic()
-results <- future_lapply(1:nm, function(j) {
-  run_simulation(j, n, nL, r, CJ, TJ, M, Px, nb, alpha, Xx, Xx_sub, h0)
-}, future.seed = TRUE)
+profvis({
+  # Your existing simulation code here
+  results <- future_lapply(1:nm, function(j) {
+    run_simulation(j, n, nL, r, CJ, TJ, M, Px, nb, alpha, Xx, Xx_sub, h0)
+  }, future.seed = TRUE)
+})
 toc()
 
 # Process results using data.table for faster operations
