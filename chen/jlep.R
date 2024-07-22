@@ -1,8 +1,3 @@
-library(foreach)
-library(doParallel)
-library(future)
-library(future.apply)
-
 Jlep <- function(Lhat, Px, PP, BB, CJ, CK, TJ, y, n, nb) {
   Lmax <- Lhat + 1
   Jmax <- TJ[Lhat + 1]
@@ -12,20 +7,16 @@ Jlep <- function(Lhat, Px, PP, BB, CJ, CK, TJ, y, n, nb) {
   ZZ <- array(0, dim = c(Lmax, Lmax, nb))
   HH <- matrix(0, nrow = Lmax, ncol = Lmax)
   
-  # Set up parallel backend
-  cores <- detectCores() - 1
-  plan(multisession, workers = cores)
-  
   # Pre-compute npiv results
-  npiv_results <- future_lapply(1:Lmax, function(idx) {
+  npiv_results <- lapply(1:Lmax, function(idx) {
     PP_sub <- PP[, (CJ[idx] + 1):(CJ[idx + 1])]
     BB_sub <- BB[, (CK[idx] + 1):(CK[idx + 1])]
     npiv(PP_sub, BB_sub, y)
   })
   
   # Main computation
-  result <- future_lapply(1:(Lmax-1), function(i) {
-    lapply((i+1):Lmax, function(j) {
+  for (i in 1:(Lmax-1)) {
+    for (j in (i+1):Lmax) {
       Px1 <- Px[, (CJ[i] + 1):(CJ[i + 1])]
       Px2 <- Px[, (CJ[j] + 1):(CJ[j + 1])]
       
@@ -51,23 +42,15 @@ Jlep <- function(Lhat, Px, PP, BB, CJ, CK, TJ, y, n, nb) {
       
       tden <- sqrt(rowSums((Px1 %*% OL1) * Px1) + rowSums((Px2 %*% OL2) * Px2) - 2 * rowSums((Px1 %*% OL12) * Px2))
       tnum <- sqrt(n) * (Px1 %*% c1 - Px2 %*% c2)
-      HH_val <- max(abs(tnum / tden))
+      HH[i, j] <- max(abs(tnum / tden))
       
-      ZZ_vals <- sapply(1:nb, function(b) {
+      for (b in 1:nb) {
         Buw1 <- t(Bu1) %*% omega[, b] / sqrt(n)
         Buw2 <- t(Bu2) %*% omega[, b] / sqrt(n)
         tnum_boot <- Px1 %*% Q1 %*% Buw1 - Px2 %*% Q2 %*% Buw2
-        max(abs(tnum_boot / tden))
-      })
-      
-      list(HH = HH_val, ZZ = ZZ_vals, i = i, j = j)
-    })
-  })
-  
-  # Unpack results
-  for (res in unlist(result, recursive = FALSE)) {
-    HH[res$i, res$j] <- res$HH
-    ZZ[res$i, res$j, ] <- res$ZZ
+        ZZ[i, j, b] <- max(abs(tnum_boot / tden))
+      }
+    }
   }
   
   # Critical value
@@ -76,9 +59,6 @@ Jlep <- function(Lhat, Px, PP, BB, CJ, CK, TJ, y, n, nb) {
   
   # Step 2: cut-off rule
   LL <- which.max(apply(HH, 1, max) <= 1.1 * theta) - 1
-  
-  # Stop parallel backend
-  plan(sequential)
   
   return(list(LL = LL, theta = theta))
 }
