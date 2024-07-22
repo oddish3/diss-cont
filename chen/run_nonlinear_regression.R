@@ -3,7 +3,7 @@ rm(list = ls())
 cat("\014")
 
 library(splines2)
-
+library(tictoc)
 source("~/Documents/uni/master-dissertation/code-cont/chen/jhat.R")
 source("~/Documents/uni/master-dissertation/code-cont/chen/jlep.R")
 source("~/Documents/uni/master-dissertation/code-cont/chen/npiv.R")
@@ -70,7 +70,7 @@ set.seed(1234567)
 
 n <- nn[n_index]
 
-for (j in 1:nm) {
+for (j in 1:nm) { # j=1
   
   if (j %% 25 == 0) {
     cat(sprintf("j = %d \n", j))
@@ -91,12 +91,16 @@ for (j in 1:nm) {
   }
   
   # Compute \hat{J}_{\max} resolution level
+  tic()
   result1 <- Jhat(PP, PP, CJ, CJ, TJ, M, n, nL) 
+  toc()
   Lhat[j] <- result1$LL
   flag[j] <- result1$flag
   
   # Compute Lepski method resolution level
+  tic()
   result2 <- Jlep(Lhat[j], Px, PP, PP, CJ, CJ, TJ, y, n, nb)
+  toc()
   Llep[j] <- result2$LL
   thet[j] <- result2$theta
   
@@ -116,5 +120,6 @@ for (j in 1:nm) {
   loss[j, 1] <- max(abs(h0[which(Xx %in% Xx_sub)] - hhat))
   
   # Compute coverage
-  cvge[j, , 1] <- ucb_cvge(h0[which(Xx %in% Xx_sub)], hhat, sigh, zast[j, ], thet[j], log(log(TJ[Llep[j] + 1])))
+  results3 <-  ucb_cvge(h0[which(Xx %in% Xx_sub)], hhat, sigh, zast[j, ], thet[j], log(log(TJ[Llep[j] + 1])))
+  cvge[j, , 1] <- results3$check
 }
