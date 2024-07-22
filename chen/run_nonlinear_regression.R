@@ -26,7 +26,7 @@ print(n_index)
 
 # Inputs
 nn <- c(1250, 2500, 5000, 10000) # sample sizes
-nm <- 1000                      # number of replications
+nm <- 12                      # number of replications
 nb <- 1000                      # number of bootstrap draws per replication
 nx <- 1000                      # number of points for grid of x values
 nL <- 9                         # maximum resolution level for J
@@ -123,3 +123,5 @@ for (j in 1:nm) { # j=1
   results3 <-  ucb_cvge(h0[which(Xx %in% Xx_sub)], hhat, sigh, zast[j, ], thet[j], log(log(TJ[Llep[j] + 1])))
   cvge[j, , 1] <- results3$check
 }
+
+
