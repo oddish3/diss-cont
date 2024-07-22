@@ -108,7 +108,7 @@ for (j in 1:nm) { # j=1
   Ltil[j] <- max(min(Llep[j], Lhat[j] - 1), 0)
   
   # Compute estimator and pre-asymptotic standard error
-  debugonce(npiv_estimate)
+  # debugonce(npiv_estimate)
   npiv_result <- npiv_estimate(Ltil[j], Px, PP, PP, CJ, CJ, y, n)
   hhat <- npiv_result$hhat
   sigh <- npiv_result$sigh
