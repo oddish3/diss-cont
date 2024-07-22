@@ -13,6 +13,7 @@ source("~/Documents/uni/master-dissertation/code-cont/chen/bspline.R")
 source("~/Documents/uni/master-dissertation/code-cont/chen/npiv_estimate.R")
 source("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cv.R")
 source("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cvge.R")
+source("~/Documents/uni/master-dissertation/code-cont/ucb_cc.R")
 
 array_value <- 1 # as.integer(Sys.getenv("SLURM_ARRAY_TASK_ID"))
 if (array_value <= 4) {
@@ -92,7 +93,6 @@ for (j in 1:nm) { # j=1
   }
   
   # Compute \hat{J}_{\max} resolution level
-  # debugonce(Jhat)
   tic()
   result1 <- Jhat(PP, PP, CJ, CJ, TJ, M, n, nL) 
   toc()
@@ -110,7 +110,7 @@ for (j in 1:nm) { # j=1
   Ltil[j] <- max(min(Llep[j], Lhat[j] - 1), 0)
   
   # Compute estimator and pre-asymptotic standard error
-  debugonce(npiv_estimate)
+  # debugonce(npiv_estimate)
   npiv_result <- npiv_estimate(Ltil[j], Px, PP, PP, CJ, CJ, y, n)
   hhat <- npiv_result$hhat
   sigh <- npiv_result$sigh
@@ -122,5 +122,32 @@ for (j in 1:nm) { # j=1
   loss[j, 1] <- max(abs(h0[which(Xx %in% Xx_sub)] - hhat))
   
   # Compute coverage
-  cvge[j, , 1] <- ucb_cvge(h0[which(Xx %in% Xx_sub)], hhat, sigh, zast[j, ], thet[j], log(log(TJ[Llep[j] + 1])))
+  result3 <- ucb_cvge(h0[which(Xx %in% Xx_sub)], hhat, sigh, zast[j, ], thet[j], log(log(TJ[Llep[j] + 1])))
+  cvge[j, , 1] <- result3$check
+  
+  for (k in 1:nj) {
+    # Compute undersmoothed estimator and pre-asymptotic standard error
+    result <- npiv_estimate(k + 2, Px, PP, PP, CJ, CJ, y, n)
+    hha1 <- result$hha
+    sig1 <- result$sig
+    
+    # Compute deterministic J critical value for undersmoothed UCB
+    zdet[j, , k] <- ucb_cc(k + 2, Px, PP, PP, CJ, CJ, y, n, nb, 0, alpha)
+    
+    # Compute sup-norm loss and excess width
+    loss[j, 1 + k] <- max(abs(h0[Xx %in% Xx_sub] - hha1))
+    rati[j, k] <- max(sig1) / max(sigh)
+    
+    # Compute coverage
+    result4 <- ucb_cvge(h0[Xx %in% Xx_sub], hha1, sig1, zdet[j, , k], 0, 0)
+    cvge[j, , 1 + k] <- result4$check
+  }
 }
+
+colMeans(loss[1:12,])
+colMeans(cvge[1:12, , ])
+colMeans(rati[1:12,])
+
+save_filename <- paste0("./results/regression_", array_value, ".RData")
+save(loss, cvge, rati, zdet, zast, Llep, Ltil, Lhat, thet, TJ, 
+     file = save_filename)
