@@ -3,6 +3,7 @@ rm(list = ls())
 cat("\014")
 
 library(splines2)
+library(tictoc)
 
 source("~/Documents/uni/master-dissertation/code-cont/chen/jhat.R")
 source("~/Documents/uni/master-dissertation/code-cont/chen/jlep.R")
@@ -92,12 +93,16 @@ for (j in 1:nm) { # j=1
   
   # Compute \hat{J}_{\max} resolution level
   # debugonce(Jhat)
+  tic()
   result1 <- Jhat(PP, PP, CJ, CJ, TJ, M, n, nL) 
+  toc()
   Lhat[j] <- result1$LL
   flag[j] <- result1$flag
   
   # Compute Lepski method resolution level
+  tic()
   result2 <- Jlep(Lhat[j], Px, PP, PP, CJ, CJ, TJ, y, n, nb)
+  toc()
   Llep[j] <- result2$LL
   thet[j] <- result2$theta
   
