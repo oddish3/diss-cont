@@ -70,7 +70,7 @@ set.seed(1234567)
 
 n <- nn[n_index]
 
-for (j in 1:nm) {
+for (j in 1:nm) { # j=1
   
   if (j %% 25 == 0) {
     cat(sprintf("j = %d \n", j))
@@ -91,6 +91,7 @@ for (j in 1:nm) {
   }
   
   # Compute \hat{J}_{\max} resolution level
+  # debugonce(Jhat)
   result1 <- Jhat(PP, PP, CJ, CJ, TJ, M, n, nL) 
   Lhat[j] <- result1$LL
   flag[j] <- result1$flag
