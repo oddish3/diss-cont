@@ -1,5 +1,4 @@
 ucb_cvge <- function(h0, hhat, sigh, zast, theta, A) {
-  # browser()
   loss <- max(abs(hhat - h0))
   tmax <- max(abs((hhat - h0) / sigh))
   

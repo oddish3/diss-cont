@@ -1,27 +1,37 @@
 #include <RcppArmadillo.h>
-#include <omp.h> // OpenMP for parallelization
 // [[Rcpp::depends(RcppArmadillo)]]
-// [[Rcpp::plugins(openmp)]]
 
 // Declare the npiv function
 // [[Rcpp::export]]
 Rcpp::List npiv(const arma::mat& P, const arma::mat& B, const arma::vec& y) {
+  // Compute intermediate matrices
   arma::mat BtB = B.t() * B;
   arma::mat BtB_pinv = arma::pinv(BtB);
   arma::mat PtB = P.t() * B;
   
+  // Compute Q
   arma::mat Q = arma::pinv(PtB * BtB_pinv * PtB.t()) * PtB * BtB_pinv;
+  
+  // Compute c
   arma::vec c = Q * B.t() * y;
+  
+  // Compute uhat
   arma::vec uhat = y - P * c;
+  
+  // Compute QQ
   arma::mat QQ = Q * y.n_elem;
   
-  return Rcpp::List::create(
+  // Prepare the return list
+  Rcpp::List result = Rcpp::List::create(
     Rcpp::Named("c") = c,
     Rcpp::Named("uhat") = uhat,
     Rcpp::Named("Q") = Q,
-    Rcpp::Named("QQ") = QQ
+    Rcpp::Named("QQ") = QQ // Include QQ in the return list
   );
+  
+  return result;
 }
+
 
 // [[Rcpp::export]]
 Rcpp::List jlep(arma::uword Lhat, const arma::mat& Px, const arma::mat& PP, const arma::mat& BB, 
@@ -35,7 +45,6 @@ Rcpp::List jlep(arma::uword Lhat, const arma::mat& Px, const arma::mat& PP, cons
   arma::cube ZZ(Lmax, Lmax, nb, arma::fill::zeros);
   arma::mat HH(Lmax, Lmax, arma::fill::zeros);
   
-#pragma omp parallel for
   for (arma::uword i = 0; i < Lmax - 1; ++i) {
     for (arma::uword j = i + 1; j < Lmax; ++j) {
       arma::mat Px1 = Px.cols(CJ(i), CJ(i + 1) - 1);
@@ -63,7 +72,6 @@ Rcpp::List jlep(arma::uword Lhat, const arma::mat& Px, const arma::mat& PP, cons
       arma::mat OL12 = Q1 * (Bu1.t() * Bu2 / n) * Q2.t();
       
       arma::vec tden(Px.n_rows);
-#pragma omp parallel for
       for (arma::uword x = 0; x < Px.n_rows; ++x) {
         double s1 = arma::as_scalar(Px1.row(x) * OL1 * Px1.row(x).t());
         double s2 = arma::as_scalar(Px2.row(x) * OL2 * Px2.row(x).t());
@@ -74,7 +82,6 @@ Rcpp::List jlep(arma::uword Lhat, const arma::mat& Px, const arma::mat& PP, cons
       arma::vec tnum = std::sqrt(n) * (Px1 * c1 - Px2 * c2);
       HH(i, j) = arma::max(arma::abs(tnum / tden));
       
-#pragma omp parallel for
       for (arma::uword b = 0; b < nb; ++b) {
         arma::vec Buw1 = Bu1.t() * omega.col(b) / std::sqrt(n);
         arma::vec Buw2 = Bu2.t() * omega.col(b) / std::sqrt(n);
@@ -92,9 +99,11 @@ Rcpp::List jlep(arma::uword Lhat, const arma::mat& Px, const arma::mat& PP, cons
   double quantile_index = std::max(0.5, 1.0 - std::sqrt(std::log(Jmax) / Jmax));
   double theta = z_sorted(static_cast<arma::uword>(quantile_index * (nb - 1)));
   
+  
   arma::uvec indices = arma::find(arma::max(HH, 1) <= 1.1 * theta, 1);
   arma::uword LL = indices.is_empty() ? 0 : indices.at(0);
   if (LL > 0) LL -= 1;
+  
   
   return Rcpp::List::create(Rcpp::Named("LL") = LL,
                             Rcpp::Named("theta") = theta);

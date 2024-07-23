@@ -22,7 +22,7 @@ double quantile(const vector<double>& data, double alpha) {
 
 // [[Rcpp::export]]
 double ucb_cv(const int Ltil, const int Lhat, const mat& Px, const mat& PP, const mat& BB, 
-              const vector<int>& CJ, const vector<int>& CK, const vec& y, const int n, const int nb, 
+              const ivec& CJ, const ivec& CK, const vec& y, const int n, const int nb, 
               const int type, const double alpha) {
   
   int Lmax = Lhat + 1;

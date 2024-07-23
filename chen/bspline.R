@@ -26,7 +26,7 @@ bspline <- function(x, l, r, kts = NULL) {
         if (kts[i + j - 1] - kts[i] != 0) {
           a1 <- (x - kts[i]) / (kts[i + j - 1] - kts[i])
         } else {
-          a1 <- rep(0, N)
+          a1 <- rep(1, N)
         }
         if (kts[i + j] - kts[i + 1] != 0) {
           a2 <- (x - kts[i + 1]) / (kts[i + j] - kts[i + 1])
