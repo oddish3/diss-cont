@@ -13,6 +13,12 @@ source("~/Documents/uni/master-dissertation/code-cont/chen/npiv_estimate.R")
 source("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cv.R")
 source("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cvge.R")
 
+dat <- readMat("/home/oddish3/Documents/M_folder/CCK2/data_iteration_1.mat")
+u <- dat$u
+x <- dat$x
+y <- dat$y
+
+
 array_value <- 1 # as.integer(Sys.getenv("SLURM_ARRAY_TASK_ID"))
 if (array_value <= 4) {
   trimming <- TRUE
@@ -80,9 +86,9 @@ for (j in 1:nm) { # j=1
   }
   # browser()
   # Simulate data
-  x <- runif(n)
-  u <- rnorm(n)
-  y <- sin(15 * pi * x) * cos(x) + u
+  # x <- runif(n)
+  # u <- rnorm(n)
+  # y <- sin(15 * pi * x) * cos(x) + u
   
   # Pre-compute basis functions and store in arrays PP and BB
   PP <- matrix(0, nrow = n, ncol = CJ[length(CJ)])
@@ -139,7 +145,6 @@ for (j in 1:nm) { # j=1
     # Compute coverage
     cvge[j, , 1 + k] <- ucb_cvge(h0[Xx %in% Xx_sub], hha1, sig1, zdet[j, , k], 0, 0)
   }
-  
 }
 
 
