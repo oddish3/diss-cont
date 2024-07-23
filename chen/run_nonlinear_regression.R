@@ -122,6 +122,24 @@ for (j in 1:nm) { # j=1
   # Compute coverage
   results3 <-  ucb_cvge(h0[which(Xx %in% Xx_sub)], hhat, sigh, zast[j, ], thet[j], log(log(TJ[Llep[j] + 1])))
   cvge[j, , 1] <- results3$check
+  
+  for (k in 1:nj) {
+    # Compute undersmoothed estimator and pre-asymptotic standard error
+    result <- npiv_estimate(k + 2, Px, PP, PP, CJ, CJ, y, n)
+    hha1 <- result$hha
+    sig1 <- result$sig
+    
+    # Compute deterministic J critical value for undersmoothed UCB
+    zdet[j, , k] <- ucb_cc(k + 2, Px, PP, PP, CJ, CJ, y, n, nb, 0, alpha)
+    
+    # Compute sup-norm loss and excess width
+    loss[j, 1 + k] <- max(abs(h0[Xx %in% Xx_sub] - hha1))
+    rati[j, k] <- max(sig1) / max(sigh)
+    
+    # Compute coverage
+    cvge[j, , 1 + k] <- ucb_cvge(h0[Xx %in% Xx_sub], hha1, sig1, zdet[j, , k], 0, 0)
+  }
+  
 }
 
 
