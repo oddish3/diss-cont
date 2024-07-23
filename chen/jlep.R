@@ -1,7 +1,7 @@
 # Lepski method
 # For computational reasons will return the resolution level, rather than J
 
-Jlep <- function(Lhat, Px, PP, BB, CJ, CK, TJ, y, n, nb) {
+jlep <- function(Lhat, Px, PP, BB, CJ, CK, TJ, y, n, nb) {
  
   Lmax <- Lhat + 1
   Jmax <- TJ[Lhat + 1]
