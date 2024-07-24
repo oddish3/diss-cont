@@ -11,7 +11,7 @@ library(tibble)
 
 library(R.matlab)
 
-debugging <- F
+debugging <- T
 
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/jhat.cpp")
 # sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/npiv.cpp")
