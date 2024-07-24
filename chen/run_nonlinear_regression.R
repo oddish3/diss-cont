@@ -11,19 +11,13 @@ library(tibble)
 
 library(R.matlab)
 
-dat <- readMat("/home/oddish3/Documents/M_folder/CCK2/data_iteration_1.mat")
-u <- dat$u
-x <- dat$x
-y <- dat$y
-
-
-debugging <- T
+debugging <- F
 
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/jhat.cpp")
 # sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/npiv.cpp")
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/jlep.cpp")
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/npiv_estimate.cpp")
-# sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cc.cpp")
+sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cc.cpp")
 # sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/bspline.cpp")
 # sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cv.cpp")
 
@@ -44,7 +38,7 @@ print(n_index)
 
 # Inputs
 nn <- c(1250, 2500, 5000, 10000) # sample sizes
-nm <- 1000                      # number of replications
+nm <- 30                      # number of replications
 nb <- 1000                      # number of bootstrap draws per replication
 nx <- 1000                      # number of points for grid of x values
 nL <- 9                         # maximum resolution level for J
@@ -76,10 +70,7 @@ if (trimming == TRUE) {
   Xx_sub <- Xx
 }
 # browser()
-Px <- matrix(0, nrow = length(Xx_sub), ncol = CJ[length(CJ)])
-for (ll in 0:nL) {
-  Px[, (CJ[ll + 1] + 1):CJ[ll + 2]] <- bspline(Xx_sub, ll, r)  # Note: bspline function needs to be defined in R
-}
+
 
 h0 <- sin(15 * pi * Xx) * cos(Xx)
 
@@ -90,6 +81,22 @@ n <- nn[n_index]
 
 
 for (j in if(debugging) 1 else 1:nm) { #  j=1
+  # Generate the filename
+  filename <- sprintf("/home/oddish3/Documents/M_folder/CCK2/repdata/data_iteration_%d.mat", j)
+  
+  # Read the .mat file
+  dat <- readMat(filename)
+  
+  # Extract variables
+  x <- dat$x
+  u <- dat$u
+  y <- dat$y
+  
+  Px <- matrix(0, nrow = length(Xx_sub), ncol = CJ[length(CJ)])
+  for (ll in 0:nL) {
+    Px[, (CJ[ll + 1] + 1):CJ[ll + 2]] <- bspline(Xx_sub, ll, r)  # Note: bspline function needs to be defined in R
+  }
+  
   
   if (j %% 25 == 0) {
     cat(sprintf("j = %d \n", j))
@@ -149,7 +156,7 @@ for (j in if(debugging) 1 else 1:nm) { #  j=1
   results3 <-  ucb_cvge(h0[which(Xx %in% Xx_sub)], hhat, sigh, zast[j, ], thet[j], log(log(TJ[Llep[j] + 1])))
   cvge[j, , 1] <- results3$check
   
-  for (k in if(debugging) 1 else 1:nj) {
+  for (k in if(debugging) 1 else 1:nj) { # k=1
     # Compute undersmoothed estimator and pre-asymptotic standard error
     result <- npiv_estimate_cpp(k + 2, Px, PP, PP, CJ, CJ, y, n)
     hha1 <- result$hha
@@ -174,18 +181,35 @@ calculate_mean_median <- function(x) {
   c(mean = mean(x_non_zero), median = median(x_non_zero))
 }
 
-# Calculate mean and median for the loss matrix
-loss_summary <- apply(loss, 2, calculate_mean_median)
+# Initialize a list to store the means for each sheet
+means_list <- list()
 
-# Calculate mean and median for the cvge matrix
-cvge_summary <- apply(cvge, 2, calculate_mean_median)
+# Loop through each sheet
+for (i in 1:5) {
+  # Extract the i-th sheet
+  sheet <- cvge[, 1:2, i]
+  
+  # Calculate the mean of each row across the 3 columns
+  row_means <- colMeans(sheet)
+  
+  # Store the result in the list
+  means_list[[i]] <- row_means
+}
+means_flat <- unlist(means_list)
 
-# Calculate mean and median for the rati matrix
-rati_summary <- apply(rati, 2, calculate_mean_median)
+# Set the column names for each group of 3 columns
+column_headers <- c("90%", "95%")
+final_headers <- rep(column_headers, times = 5)
 
-# Print the summaries in a formatted table
-print(loss_summary)
-print(cvge_summary)
+# Assign the final headers to the data frame
+names(means_flat) <- final_headers
+
+# Convert to data frame for better handling and display
+means_df <- as.data.frame(t(means_flat))
+
+# Print the result
+print(means_df)
+
 print(rati_summary)
 
 
