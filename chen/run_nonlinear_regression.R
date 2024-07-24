@@ -20,10 +20,10 @@ y <- dat$y
 debugging <- T
 
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/jhat.cpp")
-sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/npiv.cpp")
+# sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/npiv.cpp")
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/jlep.cpp")
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/npiv_estimate.cpp")
-sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cc.cpp")
+# sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cc.cpp")
 # sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/bspline.cpp")
 # sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cv.cpp")
 
@@ -105,8 +105,15 @@ for (j in if(debugging) 1 else 1:nm) { #  j=1
   
   # Pre-compute basis functions and store in arrays PP and BB
   PP <- matrix(0, nrow = n, ncol = CJ[length(CJ)])
-  for (ll in 0:1) { #  nL
-    PP[, (CJ[ll + 1] + 1):CJ[ll + 2]] <- bspline(x, ll, r)
+  for (ll in 0:nL) {
+    start_col <- CJ[ll + 1] +1
+    end_col <- CJ[ll + 2]
+    # cat("Iteration:", ll, "\n")
+    # cat("Start column:", start_col, "\n")
+    # cat("End column:", end_col, "\n")
+    # cat("Dimensions of bspline output:", dim(bspline(x, ll, r)), "\n")
+    PP[, start_col:end_col] <- bspline(x, ll, r)
+    # cat("Dimensions of PP after assignment:", dim(PP), "\n\n")
   }
   
   # Compute \hat{J}_{\max} resolution level

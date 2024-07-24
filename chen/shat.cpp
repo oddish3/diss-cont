@@ -1,36 +1,27 @@
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
+using namespace Rcpp;
+using namespace arma;
+
 // [[Rcpp::export]]
-double shat_optimized_cpp(const arma::mat& P, const arma::mat& B) {
-  arma::mat Gp = P.t() * P;
-  arma::mat Gb = B.t() * B;
-  arma::mat S = B.t() * P;
+double shat(const arma::mat& P, const arma::mat& B) {
+  mat Gp = P.t() * P;
+  mat Gb = B.t() * B;
+  mat S = B.t() * P;
   
-  // Compute the smallest eigenvalue of Gb
-  arma::vec eigval;
-  bool success = arma::eig_sym(eigval, Gb);
+  double s;
   
-  if (!success) {
-    Rcpp::warning("Eigenvalue computation failed. Returning 1e-20.");
-    return 1e-20;
-  }
-  
-  double min_eigen_Gb = eigval(0);
-  
-  if (min_eigen_Gb > 0) {
-    // Compute the Cholesky decomposition
-    arma::mat L_Gb = arma::chol(Gb, "lower");
-    arma::mat L_Gp = arma::chol(Gp, "lower");
-    
-    // Solve the system using Cholesky factors
-    arma::mat intermediate = arma::solve(arma::trimatl(L_Gb), S);
-    intermediate = arma::solve(arma::trimatu(L_Gp.t()), intermediate.t()).t();
-    
-    // Compute the largest singular value of the intermediate result
-    arma::vec s = arma::svd(intermediate);
-    return s(0);
+  vec eigvals = eig_sym(Gb);
+  if (eigvals(0) > 0) {
+    mat sqrtGb = sqrtmat_sympd(Gb);
+    mat sqrtGp = sqrtmat_sympd(Gp);
+    mat temp = inv(sqrtGb) * S * inv(sqrtGp);
+    vec ss = svd(temp);
+    s = ss(ss.n_elem - 1);  // Smallest singular value
   } else {
-    return 1e-20;
+    s = 1e-20;
   }
+  
+  return s;
 }

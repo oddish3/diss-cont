@@ -1,98 +1,86 @@
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
+using namespace Rcpp;
+using namespace arma;
 
-// Include the shat function we optimized earlier
-double shat_optimized_cpp(const arma::mat& P, const arma::mat& B) {
-  arma::mat Gp = P.t() * P;
-  arma::mat Gb = B.t() * B;
-  arma::mat S = B.t() * P;
-  
-  // Compute the smallest eigenvalue of Gb
-  arma::vec eigval;
-  bool success = arma::eig_sym(eigval, Gb);
-  
-  if (!success) {
-    Rcpp::warning("Eigenvalue computation failed. Returning 1e-20.");
-    return 1e-20;
+// Helper function to print matrix summary
+void print_matrix_summary(const arma::mat& matrix, const std::string& name) {
+  Rcpp::Rcout << "Matrix " << name << " dimensions: " << matrix.n_rows << "x" << matrix.n_cols << std::endl;
+  Rcpp::Rcout << "First few elements of " << name << ":" << std::endl;
+  for (uword i = 0; i < std::min(10u, matrix.n_rows); ++i) {
+    for (uword j = 0; j < std::min(5u, matrix.n_cols); ++j) {
+      Rcpp::Rcout << std::setprecision(10) << std::setw(15) << matrix(i, j) << " ";
+    }
+    Rcpp::Rcout << std::endl;
   }
+  Rcpp::Rcout << std::endl;
+}
+
+// [[Rcpp::export]]
+double shat(const arma::mat& P, const arma::mat& B) {
+  // print_matrix_summary(P, "P");
+  // print_matrix_summary(B, "B");
   
-  double min_eigen_Gb = eigval(0);
+  mat Gp = P.t() * P;
+  mat Gb = B.t() * B;
+  mat S = B.t() * P;
   
-  if (min_eigen_Gb > 0) {
-    // Compute the Cholesky decomposition
-    arma::mat L_Gb = arma::chol(Gb, "lower");
-    arma::mat L_Gp = arma::chol(Gp, "lower");
-    
-    // Solve the system using Cholesky factors
-    arma::mat intermediate = arma::solve(arma::trimatl(L_Gb), S);
-    intermediate = arma::solve(arma::trimatu(L_Gp.t()), intermediate.t()).t();
-    
-    // Compute the largest singular value of the intermediate result
-    arma::vec s = arma::svd(intermediate);
-    return s(0);
+  double s;
+  
+  vec eigvals = eig_sym(Gb);
+  // Rcpp::Rcout << "Minimum eigenvalue of Gb: " << eigvals(0) << std::endl;
+  
+  if (eigvals(0) > 0) {
+    mat sqrtGb = sqrtmat_sympd(Gb);
+    mat sqrtGp = sqrtmat_sympd(Gp);
+    mat temp = solve(sqrtGb, S) * inv(sqrtGp);
+    vec ss = svd(temp);
+    s = ss(ss.n_elem - 1);  // Smallest singular value
+    // Rcpp::Rcout << "Smallest singular value: " << s << std::endl;
   } else {
-    return 1e-20;
+    s = 1e-20;
+    // Rcpp::Rcout << "Using default s value: " << s << std::endl;
   }
+  
+  return s;
 }
 
 // [[Rcpp::export]]
 Rcpp::List jhat(const arma::mat& PP, const arma::mat& BB, 
-                const arma::uvec& CJ, const arma::uvec& CK, 
+                const arma::vec& CJ, const arma::vec& CK, 
                 const arma::vec& TJ, double M, int n, int nL) {
   arma::vec lb(nL + 1);
   arma::vec ub(nL + 1);
   
-  for (int ll = 0; ll < nL + 1; ++ll) {
+  for (int ll = 1; ll <= nL + 1; ++ll) {
     double s;
     try {
-      arma::mat P_sub = PP.cols(CJ(ll), CJ(ll+1) - 1);
-      arma::mat B_sub = BB.cols(CK(ll), CK(ll+1) - 1);
-      s = shat_optimized_cpp(P_sub, B_sub);
+      // Rcpp::Rcout << "Cj " << std::fixed << std::setprecision(10) << CJ(ll-1) << std::endl;
+      arma::mat P_sub = PP.cols(CJ(ll-1), CJ(ll) - 1);
+      arma::mat B_sub = BB.cols(CK(ll-1), CK(ll) - 1);
       
-      // Print the s value
-      Rcpp::Rcout << "s: " << s << std::endl;
+      // Rcpp::Rcout << "Iteration " << ll << ":" << std::endl;
+      // print_matrix_summary(P_sub, "P_sub");
+      // print_matrix_summary(B_sub, "B_sub");
       
-      // Print the head of P_sub
-      Rcpp::Rcout << "Head of P_sub:" << std::endl;
-      for (size_t i = 0; i < std::min((size_t)5, (size_t)P_sub.n_rows); ++i) {
-        for (size_t j = 0; j < std::min((size_t)5, (size_t)P_sub.n_cols); ++j) {
-          Rcpp::Rcout << P_sub(i, j) << " ";
-        }
-        Rcpp::Rcout << std::endl;
-      }
-      
-      // Print the head of B_sub
-      Rcpp::Rcout << "Head of B_sub:" << std::endl;
-      for (size_t i = 0; i < std::min((size_t)5, (size_t)B_sub.n_rows); ++i) {
-        for (size_t j = 0; j < std::min((size_t)5, (size_t)B_sub.n_cols); ++j) {
-          Rcpp::Rcout << B_sub(i, j) << " ";
-        }
-        Rcpp::Rcout << std::endl;
-      }
-      
-    } catch (...) {
+      s = shat(P_sub, B_sub);
+    } catch (std::exception& e) {
+      Rcpp::Rcout << "Exception caught: " << e.what() << std::endl;
       s = 1e-20;
     }
     
+    double J = TJ(ll-1);
+    lb(ll-1) = J * std::sqrt(std::log(J)) * std::max(0.0, 1.0 / s);
     
-    double J = TJ(ll);
-    lb(ll) = J * std::sqrt(std::log(J)) * std::max(0.0, 1.0 / s);
-    
-    // Print the lower bound calculation
-    Rcpp::Rcout << "J: " << J << ", lb(" << ll << "): " << lb(ll) << std::endl;
+    // Rcpp::Rcout << "J: " << std::fixed << std::setprecision(10) << J 
+    //             << ", lb(" << ll << "): " << std::setprecision(10) << lb(ll-1) << std::endl;
   }
   
   ub.head(nL) = lb.subvec(1, nL);
-  ub(nL) = arma::datum::inf; // Set the last element to infinity
-  
-  // Print the upper bounds
-  Rcpp::Rcout << "ub: " << ub << std::endl;
+  ub(nL) = arma::datum::inf;
   
   double threshold = 2 * M * std::sqrt(n);
   arma::uvec L = arma::find(lb <= threshold && threshold <= ub);
-  
-  // Print the threshold and indices found
-  // Rcpp::Rcout << "threshold: " << threshold << ", L: " << L << std::endl;
   
   int LL;
   int flag;
@@ -111,10 +99,7 @@ Rcpp::List jhat(const arma::mat& PP, const arma::mat& BB,
     }
   }
   
-  LL = std::max(LL, 0);
-  
-  // Print final results
-  Rcpp::Rcout << "LL: " << LL << ", flag: " << flag << std::endl;
+  LL = std::max(LL, 1);
   
   return Rcpp::List::create(
     Rcpp::Named("LL") = LL,
