@@ -12,6 +12,7 @@ library(tibble)
 library(R.matlab)
 
 debugging <- T
+debugging2 <- F
 
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/jhat.cpp")
 # sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/npiv.cpp")
@@ -71,6 +72,10 @@ if (trimming == TRUE) {
 }
 # browser()
 
+Px <- matrix(0, nrow = length(Xx_sub), ncol = CJ[length(CJ)])
+  for (ll in 0:nL) {
+    Px[, (CJ[ll + 1] + 1):CJ[ll + 2]] <- bspline(Xx_sub, ll, r)  
+  }
 
 h0 <- sin(15 * pi * Xx) * cos(Xx)
 
@@ -91,11 +96,6 @@ for (j in if(debugging) 1 else 1:nm) { #  j=1
   x <- dat$x
   u <- dat$u
   y <- dat$y
-  
-  Px <- matrix(0, nrow = length(Xx_sub), ncol = CJ[length(CJ)])
-  for (ll in 0:nL) {
-    Px[, (CJ[ll + 1] + 1):CJ[ll + 2]] <- bspline(Xx_sub, ll, r)  # Note: bspline function needs to be defined in R
-  }
   
   
   if (j %% 25 == 0) {
@@ -156,7 +156,7 @@ for (j in if(debugging) 1 else 1:nm) { #  j=1
   results3 <-  ucb_cvge(h0[which(Xx %in% Xx_sub)], hhat, sigh, zast[j, ], thet[j], log(log(TJ[Llep[j] + 1])))
   cvge[j, , 1] <- results3$check
   
-  for (k in if(debugging) 1 else 1:nj) { # k=1
+  for (k in if(debugging2) 1 else 1:nj) { # k=1
     # Compute undersmoothed estimator and pre-asymptotic standard error
     result <- npiv_estimate_cpp(k + 2, Px, PP, PP, CJ, CJ, y, n)
     hha1 <- result$hha

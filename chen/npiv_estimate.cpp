@@ -34,6 +34,10 @@ Rcpp::List npiv_estimate_cpp(arma::uword Ltil, const arma::mat& Px, const arma::
   arma::mat PP1 = PP.cols(CJ_start, CJ_end);
   arma::mat BB1 = BB.cols(CK_start, CK_end);
   
+  // Calculate and print J
+  arma::uword J = Px1.n_cols;
+  Rcpp::Rcout << "Value of J (number of columns in Px1): " << J << std::endl;
+  
   // Debug Px1
   // Rcpp::Rcout << "Debug: Px1 dimensions = " << Px1.n_rows << "x" << Px1.n_cols << std::endl;
   // Rcpp::Rcout << "Debug: Px1 first few elements:\n" << Px1.submat(0, 0, arma::min(arma::uvec{4, Px1.n_rows-1}), arma::min(arma::uvec{4, Px1.n_cols-1})) << std::endl;
@@ -128,5 +132,6 @@ Rcpp::List npiv_estimate_cpp(arma::uword Ltil, const arma::mat& Px, const arma::
   // Rcpp::Rcout << "  n: " << n << std::endl;
   
   return Rcpp::List::create(Rcpp::Named("hhat") = hhat,
-                            Rcpp::Named("sigh") = sigh);
+                            Rcpp::Named("sigh") = sigh,
+                            Rcpp::Named("basis_functions") = Px1);
 }

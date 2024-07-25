@@ -1,5 +1,6 @@
 set.seed(1234)
 library(truncnorm)
+library(binscatteR)
 generate_dataset <- function() {
   # Define the number of hospitals
   num_schools <- 1000
@@ -148,10 +149,9 @@ twfe_weights_plot
 library(fixest)
 # split data into medicareshare greater than 1
 data$binary <- ifelse(data$medicare_share_1983>0, 1, 0)
-
 binarised <- feols(d_capital_labor_ratio ~ binary, data=data)
+twfe <- lm(dy ~ dose)
 summary(binarised)$coefficients[2]
 cont_res$att.overall
 summary(twfe)$coefficients[2,1]
-
 print(cont_res$acrt.overall)
