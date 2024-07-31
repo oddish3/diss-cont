@@ -68,5 +68,29 @@ List bspline(NumericVector x, int l, int r) {
     }
   }
   
-  return List::create(Named("XX") = XX);
+  // Calculate derivative
+  NumericMatrix DX(N, m + r - 1);
+  for (int i = 0; i < m + r - 1; ++i) {
+    std::vector<double> a1(N, 0.0);
+    if (kts[i + r - 2] - kts[i] != 0) {
+      std::fill(a1.begin(), a1.end(), 1.0 / (kts[i + r - 2] - kts[i]));
+    }
+    
+    std::vector<double> a2(N, 0.0);
+    if (kts[i + r - 1] - kts[i + 1] != 0) {
+      std::fill(a2.begin(), a2.end(), 1.0 / (kts[i + r - 1] - kts[i + 1]));
+    }
+    
+    if (i < m + r - 2) {
+      for (int n = 0; n < N; ++n) {
+        DX(n, i) = (r - 2) * (a1[n] * BB[n][i][r - 3] - a2[n] * BB[n][i + 1][r - 3]);
+      }
+    } else {
+      for (int n = 0; n < N; ++n) {
+        DX(n, i) = (r - 2) * (a1[n] * BB[n][i][r - 3]);
+      }
+    }
+  }
+  
+  return List::create(Named("XX") = XX, Named("DX") = DX);
 }

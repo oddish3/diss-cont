@@ -13,7 +13,7 @@ sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/jhat.cpp")
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/jlep.cpp")
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/npiv_estimate.cpp")
 sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cc.cpp")
-# sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/bspline.cpp")
+# sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/bspline.cpp") doesnt work yet
 # sourceCpp("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cv.cpp")
 
 source("~/Documents/uni/master-dissertation/code-cont/chen/ucb_cvge.R")
@@ -22,10 +22,10 @@ source("~/Documents/uni/master-dissertation/code-cont/chen/bspline.R")
 
 
 # Load and prepare data
-data <- read.csv('~/Downloads/medicare1.csv')
+dat <- read.csv('~/Downloads/medicare1.csv')
 
 # Filter out rows where medicare_share_1983 is 0
-data <- data[data$medicare_share_1983 != 0, ]
+data <- dat[dat$medicare_share_1983 != 0, ]
 
 # Extract x and y and sort them in increasing order
 sorted_indices <- order(data$medicare_share_1983)
@@ -53,15 +53,15 @@ Xx <- seq(x_min, x_max, length.out = nx)  # Note: increasing order to match sort
 Xx_sub <- Xx
 
 # Compute basis functions
+PP <- matrix(0, nrow = n, ncol = CJ[length(CJ)])
 Px <- matrix(0, nrow = length(Xx_sub), ncol = CJ[length(CJ)])
+Dx <- matrix(0, nrow = length(Xx_sub), ncol = CJ[length(CJ)])
 for (ll in 0:nL) {
-  Px[, (CJ[ll + 1] + 1):CJ[ll + 2]] <- bspline(Xx_sub, ll, r)
+  PP[, (CJ[ll + 1] + 1):CJ[ll + 2]] <- bspline(x, ll, r)$XX
+  Px[, (CJ[ll + 1] + 1):CJ[ll + 2]] <- bspline(Xx_sub, ll, r)$XX
+  Dx[, (CJ[ll + 1] + 1):CJ[ll + 2]] <- bspline(Xx_sub, ll, r)$DX
 }
 
-PP <- matrix(0, nrow = n, ncol = CJ[length(CJ)])
-for (ll in 0:nL) {
-  PP[, (CJ[ll + 1] + 1):CJ[ll + 2]] <- bspline(x, ll, r)
-}
 
 # Compute \hat{J}_{\max} resolution level
 Jhat_result <- jhat(PP, PP, CJ, CJ, TJ, M, n, nL)
@@ -83,8 +83,14 @@ hhat <- npiv_result$hhat
 sigh <- npiv_result$sigh
 spline_dosage_SR <- npiv_result$basis_function
 
+npiv_result <- npiv_estimate_cpp(Ltil, Dx, PP, PP, CJ, CJ, y, n)
+dhat <- npiv_result$hhat
+sigd <- npiv_result$sigh
+spline_dosage_SR1 <- npiv_result$basis_function
+
 # Compute critical value for UCB
 zast <- ucb_cv(Ltil, Lhat, Px, PP, PP, CJ, CJ, y, n, 1000, 0, alpha)
+zast <- ucb_cv(Ltil, Lhat, Dx, PP, PP, CJ, CJ, y, n, 1000, 0, alpha)
 
 # Plot results
 plot(x, y, pch = 20, col = rgb(0.75, 0.75, 0.75, 0.5), 
@@ -99,23 +105,91 @@ treated_hospitals <- data[data$medicare_share_1983 > 0, ]
 find_closest <- function(x, grid) {
   which.min(abs(grid - x))
 }
-closest_indices <- sapply(treated_hospitals$medicare_share_1983, find_closest, grid = Xx_sub)
-hospital_effects <- hhat[closest_indices]
-ATT_o <- mean(hospital_effects)
+# Plot the data points
+plot(Xx_sub, dhat, pch = 20, col = rgb(0.75, 0.75, 0.75, 0.5), 
+     xlab = 'Medicare Share 1983', ylab = 'Capital-Labor Ratio (Derivative)',
+     main = 'Nonparametric Regression: Derivative of Capital-Labor Ratio vs Medicare Share')
+# Plot the estimated derivative function dhat
+lines(Xx_sub, dhat, col = 'black', lwd = 2)
+# Plot the upper confidence band
+lines(Xx_sub, dhat + (zast[2] + thet * log(log(TJ[Llep + 1]))) * sigd, col = 'black', lty = 2, lwd = 2)
+# Plot the lower confidence band
+lines(Xx_sub, dhat - (zast[2] + thet * log(log(TJ[Llep + 1]))) * sigd, col = 'black', lty = 2, lwd = 2)
+# Add legend
+legend('topright', legend = c('Data', 'Estimated Derivative', 'Confidence Bands'),
+       pch = c(20, NA, NA), lty = c(NA, 1, 2), col = c('grey', 'black', 'black'))
 
-# Calculate ATT^o
-treated_hospitals <- data[data$medicare_share_1983 > 0, ]
-find_closest <- function(x, grid) {
-  which.min(abs(grid - x))
-}
-closest_indices <- sapply(treated_hospitals$medicare_share_1983, find_closest, grid = Xx_sub)
-hospital_effects <- hhat[closest_indices]
-ATT_o <- mean(hospital_effects)
-se_ATT_o <- sd(hospital_effects) / sqrt(length(hospital_effects))
 
+# Calculate ATT^o ----------------------------------------------
 
+# closest_indices <- sapply(treated_hospitals$medicare_share_1983, find_closest, grid = Xx_sub)
+# hospital_effects <- hhat[closest_indices]
+# ATT_o <- mean(hospital_effects)
+
+# treated_hospitals <- data[data$medicare_share_1983 > 0, ]
+# find_closest <- function(x, grid) {
+#   which.min(abs(grid - x))
+# }
+# closest_indices <- sapply(treated_hospitals$medicare_share_1983, find_closest, grid = Xx_sub)
+# hospital_effects <- hhat[closest_indices]
+# ATT_o <- mean(hospital_effects)
+# se_ATT_o <- sd(hospital_effects) / sqrt(length(hospital_effects))
+# print(paste("ATT^o:", ATT_o))
+# print(paste("SE(ATT^o):", se_ATT_o))
+
+dat$binary <- ifelse(dat$medicare_share_1983>0, 1, 0)
+binarised <- feols(d_capital_labor_ratio ~ binary, data=dat)
+summary(binarised)
 
 ################################################################################
+
+# Filter for positive doses
+positive_doses <- dat$medicare_share_1983[dat$medicare_share_1983 > 0]
+n_positive <- length(positive_doses)
+
+# Calculate ACR^o using the actual doses
+ACR_o <- mean(dhat[findInterval(positive_doses, Xx_sub)])
+
+# Calculate η_acro(W_i) as described in the image
+calculate_eta <- function(d_i) {
+  idx <- findInterval(d_i, Xx_sub)
+  ACR_K_D_i <- dhat[idx]
+  E_ACR_K_D <- mean(dhat[findInterval(positive_doses, Xx_sub)])
+  
+  # Note: This part is simplified. In practice, you'd need to compute the derivatives
+  # and expectations more precisely based on your specific model.
+  d_psi_K <- Dx[idx, ]  # This is a simplification
+  psi_K <- Px[idx, ]
+  
+  eta <- ACR_K_D_i - E_ACR_K_D +
+    t(d_psi_K) %*% solve(t(PP) %*% PP) %*% PP[which(x == d_i), ] * 
+    (y[which(x == d_i)] - hhat[idx])
+  
+  return(eta)
+}
+
+# Calculate σ^2_ACR^o
+eta_values <- sapply(positive_doses, calculate_eta)
+sigma_sq_ACR_o <- mean(eta_values^2)
+
+# Standard error for ACR^o
+se_ACR_o <- sqrt(sigma_sq_ACR_o / n_positive)
+
+# Calculate confidence intervals using Theorem 4.3
+alpha <- 0.05  # for 95% CI
+z_score <- qnorm(1 - alpha/2)
+ci_lower <- ACR_o - z_score * se_ACR_o
+ci_upper <- ACR_o + z_score * se_ACR_o
+
+# Print results
+print(paste("ACR^o:", ACR_o))
+print(paste("SE(ACR^o):", se_ACR_o))
+print(paste("95% CI for ACR^o: [", ci_lower, ",", ci_upper, "]"))
+
+
+
+
+
 
 # Create a data frame with sorted x, y, and basis functions
 sorted_data <- data.frame(
@@ -197,7 +271,7 @@ derivative_spline_dosage_SR <- npiv_result$derivative_basis_function
 
 # Compute ACRT using the same coefficients from splines_SR
 coefficients_SR <- coef(splines_SR)
-acrt_SR <- as.vector(derivative_spline_dosage_SR %*% coefficients_SR)
+acrt_SR <- as.vector(spline_dosage_SR1 %*% coefficients_SR)
 
 # Create a results data frame for ACRT
 results_acrt_SR <- data.frame(d = data$medicare_share_1983,
@@ -221,6 +295,8 @@ p_acrt_SR <- ggplot(data = results_acrt_SR,
         plot.title = element_text(size = 14, hjust = 0))
 
 print(p_acrt_SR)
+
+
 
 # Compute ACRT for positive doses
 acrt_SR_filtered <- acrt_SR[data$medicare_share_1983 > 0]

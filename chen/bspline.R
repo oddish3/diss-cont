@@ -44,8 +44,27 @@ bspline <- function(x, l, r, kts = NULL) {
       }
     }
   }
-  # browser()
   XX <- BB[, 1:(2^l + r - 2), r - 1]
   
-  return(XX)
+  # Calculate derivative
+  DX <- matrix(0, nrow = N, ncol = m + r - 1)
+  for (i in 1:(m + r - 1)) {
+    if (kts[i + r - 2] - kts[i] != 0) {
+      a1 <- rep(1 / (kts[i + r - 2] - kts[i]), N)
+    } else {
+      a1 <- rep(0, N)
+    }
+    if (kts[i + r - 1] - kts[i + 1] != 0) {
+      a2 <- rep(1 / (kts[i + r - 1] - kts[i + 1]), N)
+    } else {
+      a2 <- rep(0, N)
+    }
+    if (i < m + r - 1) {
+      DX[, i] <- (r - 2) * (a1 * BB[, i, r - 2] - a2 * BB[, i + 1, r - 2])
+    } else {
+      DX[, i] <- (r - 2) * (a1 * BB[, i, r - 2])
+    }
+  }
+  
+  return(list(XX = XX, DX = DX))
 }
