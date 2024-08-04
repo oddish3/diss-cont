@@ -102,9 +102,16 @@ lines(Xx_sub, hhat - (zast[2] + thet * log(log(TJ[Llep + 1]))) * sigh, col = 'bl
 legend('topright', legend = c('Data', 'Estimated Function', 'Confidence Bands'),
        pch = c(20, NA, NA), lty = c(NA, 1, 2), col = c('grey', 'black', 'black'))
 treated_hospitals <- data[data$medicare_share_1983 > 0, ]
+
+# Calculate ATT^o ----------------------------------------------
+dat$binary <- ifelse(dat$medicare_share_1983>0, 1, 0)
+binarised <- feols(d_capital_labor_ratio ~ binary, data=dat)
+summary(binarised)
+
 find_closest <- function(x, grid) {
   which.min(abs(grid - x))
 }
+
 # Plot the data points
 plot(Xx_sub, dhat, pch = 20, col = rgb(0.75, 0.75, 0.75, 0.5), 
      xlab = 'Medicare Share 1983', ylab = 'Capital-Labor Ratio (Derivative)',
@@ -120,26 +127,6 @@ legend('topright', legend = c('Data', 'Estimated Derivative', 'Confidence Bands'
        pch = c(20, NA, NA), lty = c(NA, 1, 2), col = c('grey', 'black', 'black'))
 
 
-# Calculate ATT^o ----------------------------------------------
-
-# closest_indices <- sapply(treated_hospitals$medicare_share_1983, find_closest, grid = Xx_sub)
-# hospital_effects <- hhat[closest_indices]
-# ATT_o <- mean(hospital_effects)
-
-# treated_hospitals <- data[data$medicare_share_1983 > 0, ]
-# find_closest <- function(x, grid) {
-#   which.min(abs(grid - x))
-# }
-# closest_indices <- sapply(treated_hospitals$medicare_share_1983, find_closest, grid = Xx_sub)
-# hospital_effects <- hhat[closest_indices]
-# ATT_o <- mean(hospital_effects)
-# se_ATT_o <- sd(hospital_effects) / sqrt(length(hospital_effects))
-# print(paste("ATT^o:", ATT_o))
-# print(paste("SE(ATT^o):", se_ATT_o))
-
-dat$binary <- ifelse(dat$medicare_share_1983>0, 1, 0)
-binarised <- feols(d_capital_labor_ratio ~ binary, data=dat)
-summary(binarised)
 
 ################################################################################
 
@@ -150,20 +137,25 @@ n_positive <- length(positive_doses)
 # Calculate ACR^o using the actual doses
 ACR_o <- mean(dhat[findInterval(positive_doses, Xx_sub)])
 
-# Calculate η_acro(W_i) as described in the image
+# Calculate E_n[ΔY|D=0]
+E_DY_D0 <- mean(dat$d_capital_labor_ratio[dat$medicare_share_1983 == 0])
+
 calculate_eta <- function(d_i) {
   idx <- findInterval(d_i, Xx_sub)
   ACR_K_D_i <- dhat[idx]
   E_ACR_K_D <- mean(dhat[findInterval(positive_doses, Xx_sub)])
   
-  # Note: This part is simplified. In practice, you'd need to compute the derivatives
-  # and expectations more precisely based on your specific model.
-  d_psi_K <- Dx[idx, ]  # This is a simplification
+  d_psi_K <- Dx[idx, ]
   psi_K <- Px[idx, ]
   
+  # Calculate û_i
+  u_i <- y[which(x == d_i)] - E_DY_D0 - hhat[idx]
+  
+  # Add small constant for numerical stability
+  PP_inv <- solve(t(PP) %*% PP + diag(1e-8, ncol(PP)))
+  
   eta <- ACR_K_D_i - E_ACR_K_D +
-    t(d_psi_K) %*% solve(t(PP) %*% PP) %*% PP[which(x == d_i), ] * 
-    (y[which(x == d_i)] - hhat[idx])
+    t(d_psi_K) %*% PP_inv %*% PP[which(x == d_i), ] * u_i
   
   return(eta)
 }
@@ -175,16 +167,16 @@ sigma_sq_ACR_o <- mean(eta_values^2)
 # Standard error for ACR^o
 se_ACR_o <- sqrt(sigma_sq_ACR_o / n_positive)
 
-# Calculate confidence intervals using Theorem 4.3
+# Calculate confidence intervals
 alpha <- 0.05  # for 95% CI
 z_score <- qnorm(1 - alpha/2)
 ci_lower <- ACR_o - z_score * se_ACR_o
 ci_upper <- ACR_o + z_score * se_ACR_o
 
 # Print results
-print(paste("ACR^o:", ACR_o))
-print(paste("SE(ACR^o):", se_ACR_o))
-print(paste("95% CI for ACR^o: [", ci_lower, ",", ci_upper, "]"))
+print(paste("ACR^o estimate:", ACR_o))
+print(paste("Standard Error:", se_ACR_o))
+print(paste("95% CI: [", ci_lower, ",", ci_upper, "]"))
 
 
 
